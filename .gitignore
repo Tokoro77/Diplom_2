@@ -3,6 +3,7 @@
 
 # Maven
 target/
+!target/allure-results/
 pom.xml.tag
 pom.xml.releaseBackup
 pom.xml.versionsBackup
@@ -38,7 +39,5 @@ bin/
 # Windows
 Thumbs.db
 
-# Все что в target, кроме allure-results
-target/*
-!target/allure-results/
-!target/allure-results/**
+# Java
+*.class
