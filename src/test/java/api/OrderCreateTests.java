@@ -8,17 +8,20 @@ import api.user.UserMethod;
 import io.qameta.allure.Description;
 import io.qameta.allure.junit4.DisplayName;
 import io.restassured.response.ValidatableResponse;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.util.*;
 
+import static org.apache.http.HttpStatus.*;
 import static org.hamcrest.Matchers.*;
 
 public class OrderCreateTests {
 
     private UserMethod userClient = new UserMethod();
     private OrderMethod orderClient = new OrderMethod();
+    private User user;
     private String accessToken;
     private List<String> validIngredients = new ArrayList<>();
 
@@ -26,7 +29,7 @@ public class OrderCreateTests {
     public void setUp() {
         // Получаем реальные ингредиенты из API
         ValidatableResponse ingredientsResponse = orderClient.getIngredients();
-        if (ingredientsResponse.extract().statusCode() == 200) {
+        if (ingredientsResponse.extract().statusCode() == SC_OK) {
             validIngredients = ingredientsResponse.extract().jsonPath().getList("data._id");
             if (validIngredients == null || validIngredients.isEmpty()) {
                 validIngredients = ingredientsResponse.extract().jsonPath().getList("_id");
@@ -40,10 +43,20 @@ public class OrderCreateTests {
             );
         }
 
-        User user = UserGenerator.random();
+        // Создаем пользователя для тестов с авторизацией
+        user = UserGenerator.random();
         ValidatableResponse createResponse = userClient.create(user);
-        createResponse.assertThat().statusCode(200);
+        createResponse.assertThat().statusCode(SC_OK);
         accessToken = userClient.extractAccessToken(createResponse);
+    }
+
+    @After
+    public void tearDown() {
+
+        if (accessToken != null) {
+            userClient.delete(accessToken);
+
+        }
     }
 
     @Test
@@ -59,7 +72,7 @@ public class OrderCreateTests {
 
             orderClient.createWithAuth(order, accessToken)
                     .assertThat()
-                    .statusCode(200)
+                    .statusCode(SC_OK)
                     .body("success", equalTo(true))
                     .body("order.number", greaterThan(0));
         }
@@ -75,7 +88,7 @@ public class OrderCreateTests {
 
             orderClient.createWithoutAuth(order)
                     .assertThat()
-                    .statusCode(200)
+                    .statusCode(SC_OK)
                     .body("success", equalTo(true))
                     .body("order.number", greaterThan(0));
         }
@@ -89,7 +102,7 @@ public class OrderCreateTests {
 
         orderClient.createWithAuth(order, accessToken)
                 .assertThat()
-                .statusCode(400)
+                .statusCode(SC_BAD_REQUEST)
                 .body("success", equalTo(false))
                 .body("message", equalTo("Ingredient ids must be provided"));
     }
@@ -103,10 +116,9 @@ public class OrderCreateTests {
 
         orderClient.createWithAuth(order, accessToken)
                 .assertThat()
-                .statusCode(500); // ✅ Правильно! 500 Internal Server Error
+                .statusCode(SC_INTERNAL_SERVER_ERROR);
     }
 
-    // Дополнительные тесты для полного покрытия (опционально)
     @Test
     @DisplayName("Создание заказа без ингредиентов (null)")
     @Description("Проверка создания заказа с null вместо массива ингредиентов")
@@ -115,7 +127,7 @@ public class OrderCreateTests {
 
         orderClient.createWithAuth(order, accessToken)
                 .assertThat()
-                .statusCode(400)
+                .statusCode(SC_BAD_REQUEST)
                 .body("success", equalTo(false))
                 .body("message", equalTo("Ingredient ids must be provided"));
     }

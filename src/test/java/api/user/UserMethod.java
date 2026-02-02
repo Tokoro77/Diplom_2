@@ -24,12 +24,17 @@ public class UserMethod extends BaseMethod {
                 .then().log().all();
     }
 
-    // Извлечение accessToken из ответа
+    // Удаление пользователя
+    public ValidatableResponse delete(String accessToken) {
+        return getSpec()
+                .header("Authorization", accessToken)
+                .when()
+                .delete(AUTH_URI + "user")
+                .then().log().all();
+    }
+
     public String extractAccessToken(ValidatableResponse response) {
-        String token = response.extract().path("accessToken");
-        if (token != null && token.startsWith("Bearer ")) {
-            return token.substring(7);
-        }
-        return token;
+        // Просто возвращаем токен как есть из API
+        return response.extract().path("accessToken");
     }
 }

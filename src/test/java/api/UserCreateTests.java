@@ -6,41 +6,66 @@ import api.user.UserMethod;
 import io.qameta.allure.Description;
 import io.qameta.allure.junit4.DisplayName;
 import io.restassured.response.ValidatableResponse;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 
+import static org.apache.http.HttpStatus.*;
 import static org.hamcrest.Matchers.*;
 
 public class UserCreateTests {
 
     private UserMethod client = new UserMethod();
+    private User user;
+    private String accessToken;
+
+    @Before
+    public void setUp() {
+        // Создаем пользователя для теста на существующего пользователя
+        user = UserGenerator.random();
+        ValidatableResponse createResponse = client.create(user);
+        createResponse.assertThat().statusCode(SC_OK);
+        accessToken = client.extractAccessToken(createResponse);
+    }
+
+    @After
+    public void tearDown() {
+
+        if (accessToken != null) {
+            client.delete(accessToken);
+            // Убрали: .assertThat().statusCode(SC_ACCEPTED)
+        }
+    }
 
     @Test
     @DisplayName("Создание уникального пользователя")
     @Description("Проверка успешного создания пользователя с уникальными данными")
     public void createUniqueUserSuccessfully() {
-        User user = UserGenerator.random();
+        User newUser = UserGenerator.random();
 
-        ValidatableResponse response = client.create(user);
+        ValidatableResponse response = client.create(newUser);
         response.assertThat()
-                .statusCode(200)
+                .statusCode(SC_OK)
                 .body("success", is(true))
-                .body("user.email", equalTo(user.getEmail().toLowerCase()))
-                .body("user.name", equalTo(user.getName()))
+                .body("user.email", equalTo(newUser.getEmail().toLowerCase()))
+                .body("user.name", equalTo(newUser.getName()))
                 .body("accessToken", notNullValue());
+
+        String newUserToken = client.extractAccessToken(response);
+        if (newUserToken != null) {
+            client.delete(newUserToken);
+            // Убрали: .assertThat().statusCode(SC_ACCEPTED)
+        }
     }
 
     @Test
     @DisplayName("Создание пользователя, который уже зарегистрирован")
     @Description("Проверка, что нельзя создать пользователя с уже существующим email")
     public void createExistingUserShouldFail() {
-        // Сначала создаем пользователя
-        User user = UserGenerator.random();
-        client.create(user).assertThat().statusCode(200);
-
         // Пытаемся создать пользователя с теми же данными
         client.create(user)
                 .assertThat()
-                .statusCode(403)
+                .statusCode(SC_FORBIDDEN)
                 .body("success", is(false))
                 .body("message", equalTo("User already exists"));
     }
@@ -53,7 +78,7 @@ public class UserCreateTests {
 
         client.create(userWithoutEmail)
                 .assertThat()
-                .statusCode(403)
+                .statusCode(SC_FORBIDDEN)
                 .body("success", is(false))
                 .body("message", equalTo("Email, password and name are required fields"));
     }
@@ -66,7 +91,7 @@ public class UserCreateTests {
 
         client.create(userWithoutPassword)
                 .assertThat()
-                .statusCode(403)
+                .statusCode(SC_FORBIDDEN)
                 .body("success", is(false))
                 .body("message", equalTo("Email, password and name are required fields"));
     }
@@ -79,7 +104,7 @@ public class UserCreateTests {
 
         client.create(userWithoutName)
                 .assertThat()
-                .statusCode(403)
+                .statusCode(SC_FORBIDDEN)
                 .body("success", is(false))
                 .body("message", equalTo("Email, password and name are required fields"));
     }
