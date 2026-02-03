@@ -2,7 +2,7 @@
 .allure/
 
 # Maven
-target/
+target/*
 !target/allure-results/
 pom.xml.tag
 pom.xml.releaseBackup
